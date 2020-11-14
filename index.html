@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Portfolio PWA</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.json" crossorigin="use-credentials">
+<link rel="icon" type="image/png" sizes="32x32" href="icon/favicon-32x32.png">
+</head>
+<body>
+<h1>Just Another PWA</h1>
+
+<p><a href="push.html">Push Notification</a></p>
+
+<script>
+// Base64形式をUnit8形式に変換する
+var urlBase64ToUint8Array = function(base64String) {
+	var padding = '='.repeat((4 - base64String.length % 4) % 4);
+	var base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+	var rawData = window.atob(base64);
+	var outputArray = new Uint8Array(rawData.length);
+	for (var i = 0; i < rawData.length; ++i) {
+		outputArray[i] = rawData.charCodeAt(i);
+	}
+	return outputArray;
+}
+
+// サブスクリプションの詳細を表示
+var viewSubscription = function(subscription) {
+	var rawKey = subscription.getKey ? subscription.getKey('p256dh') : '';
+	var key = rawKey ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawKey))) : '';
+	var rawAuthSecret = subscription.getKey ? subscription.getKey('auth') : '';
+	var auth = rawAuthSecret ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawAuthSecret))) : '';
+	var endpoint = subscription.endpoint;
+	var registrationID = endpoint.substring(endpoint.lastIndexOf('/')+1, endpoint.length);
+	console.log(subscription);
+	console.log('key : ' + key);
+	console.log('auth : ' + auth);
+	console.log('endpoint : ' + endpoint);
+	console.log('registration ID : ' + registrationID);
+}
+
+// 新しいサブスクリプションを登録・古いサブスクリプションを削除
+var sendSubscription = function(subscription){
+	var data = {};
+	var latestID = localStorage.getItem('latestID');
+	var rawKey = subscription.getKey ? subscription.getKey('p256dh') : '';
+	data.key = rawKey ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawKey))) : '';
+	var rawAuthSecret = subscription.getKey ? subscription.getKey('auth') : '';
+	data.auth = rawAuthSecret ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawAuthSecret))) : '';
+	data.endpoint = subscription.endpoint;
+	data.registrationID = data.endpoint.substring(data.endpoint.lastIndexOf('/')+1, data.endpoint.length);
+	localStorage.setItem('latestID', data.registrationID);
+
+	// 新しいサブスクリプションを通知対象に登録する
+	fetch('https://portfolio-s-pwa.herokuapp.com/add',{
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		mode: 'cors',
+		body: JSON.stringify(data)
+	})
+	.then(function(response) { return response.text(); })
+	.then(function(res){ console.log(res); });
+
+	// 古いサブスクリプションがあれば通知対象から削除する
+	if (latestID) {
+		fetch('https://portfolio-s-pwa.herokuapp.com/delete',{
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			mode: 'cors',
+			body: JSON.stringify({ registrationID: latestID})
+		})
+		.then(function(response) { return response.text(); })
+		.then(function(res){ console.log(res); });
+	}
+}
+
+var vapidPublicKey = 'BFibl7x-mj9rAcmMKlkiR78Gc0H9AhT87GscGWy3Lbt_rc-khCwMx2TdSY1b0tbHIiyzNUenqM9mD-uF5unl_ro';
+var convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+
+if (/ipad|iphone|ipod/.test(navigator.userAgent.toLowerCase()) && !window.MSStream) {
+	var manifest = document.querySelector('link[rel="manifest"]');
+	manifest.parentNode.removeChild(manifest);
+} else {
+	if ('serviceWorker' in navigator) {
+
+		// ServiceWorkerを登録
+		navigator.serviceWorker.register('serviceworker.js', {
+			scope: './',
+		}).then(function(registration) {
+			// 登録成功時
+			console.log('[client] serviceworker register')
+		}).catch(function(error) {
+			// 登録失敗時
+		});
+
+		navigator.serviceWorker.ready.then(function(registration) {
+			console.log('[client] serviceworker ready');
+			return registration.pushManager.getSubscription().then(function(subscription) {
+				if ( Notification.permission !== 'denied') {
+					if (subscription) return subscription
+					return registration.pushManager.subscribe({
+						userVisibleOnly: true,
+						applicationServerKey: convertedVapidKey
+					}).then(function (subscription) {
+						sendSubscription(subscription);
+					});
+				}
+			})
+		});
+
+		// navigator.serviceWorker.addEventListener('message', function(event) {
+		// 	let data = event.data;
+		// 	console.log('[client] message');
+		// 	if (data.result === 'ok' && data.command === 'cache-update') {
+		// 		let currentCache = event.data.cacheName;
+		// 		let latestCache = localStorage.getItem('latestCache');
+		// 		localStorage.setItem('latestCache', currentCache);
+		// 		if (latestCache && latestCache !== currentCache) {
+		// 			alert('新しいアップデートを適用します');
+		// 			location.reload(true);
+		// 		}
+		// 	}
+		// });
+	}
+}
+</script>
+</body>
+</html>

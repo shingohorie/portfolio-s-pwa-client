@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>通知送信 | Portfolio PWA</title>
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/uikit/3.1.5/css/uikit.min.css">
+<link rel="icon" type="image/png" sizes="32x32" href="icon/favicon-32x32.png">
+<style>
+.uk-container {
+	margin-top: 50px;
+}
+</style>
+</head>
+<body>
+	<div class="uk-container">
+		<form method="POST" class="form">
+		    <fieldset class="uk-fieldset">
+
+		        <legend class="uk-legend">Push</legend>
+
+				<div class="uk-margin">
+					Title
+		            <input class="uk-input" type="text" placeholder="Input title" name="title">
+		        </div>
+
+		        <div class="uk-margin">
+					Message
+		            <input class="uk-input" type="text" placeholder="Input payload message" name="message">
+		        </div>
+
+		        <div class="uk-margin">
+		            <button class="uk-button uk-button-primary" type="submit">Push</button>
+		        </div>
+
+		    </fieldset>
+		</form>
+	</div>
+<script>
+document.querySelector('.form').addEventListener('submit', function(e){
+	e.preventDefault();
+	var title = document.querySelector('.form').querySelector('[name="title"]').value;
+	var message = document.querySelector('.form').querySelector('[name="message"]').value;
+	var data = { title: title, message: message };
+	fetch('https://portfolio-s-pwa.herokuapp.com/push',{
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		mode: 'cors',
+		body: JSON.stringify(data)
+	})
+    .then(function(response) {
+		return response.text();
+	})
+	.then(function(res){
+		console.log(res)
+	})
+}, false)
+</script>
+</body>
+</html>
